@@ -1,7 +1,7 @@
 ---
-title: "Client Report - [Insert Project Title]"
+title: "Client Report - Finding Relationships in Baseball"
 subtitle: "Course DS 250"
-author: "[STUDENT NAME]"
+author: "Ava Jenks"
 format:
   html:
     self-contained: true
@@ -25,4 +25,138 @@ execute:
     
 ---
 
-### Paste in a template
+```{python}
+#| label: libraries
+#| include: false
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import sqlite3
+```
+
+
+## Elevator pitch
+
+_ For this project, we use data to analyze baseball teams and players. For instance, we observe that there are 29 players from BYU-I. Further analysis reveals a trend where batting averages tend to decrease with at-bats exceeding ten compared to a single at-bat. To further illustrate, the highest batting average with over 100 at-bats was approximately 37%. Additionally, a comparison of two teams' home runs per at-bat shows rates of 1.1% and 1.5%. _
+
+```{python}
+#| label: project data
+#| code-summary: Read and format project data
+# Include and execute your code here
+sqlite_file = "lahmansbaseballdb.sqlite"
+con = sqlite3.connect(sqlite_file)
+```
+
+
+
+## QUESTION|TASK 1: Players with BYU-Idaho Origins
+
+__Write an SQL query to create a new dataframe about baseball players who attended BYU-Idaho. The new table should contain five columns: playerID, schoolID, salary, and the yearID/teamID associated with each salary. Order the table by salary (highest to lowest) and print out the table in your report.__
+
+_There are 29 Players who attended BYU-Idaho from 1997 to 2014. They have salaries ranging from $4,000,000 to $150,000_
+
+
+```{python}
+#| label: Q
+#| code-summary: Read and format data
+# Include and execute your code here
+q = "SELECT C.playerID, C.schoolID, S.salary, S.yearID, S.teamID FROM collegeplaying C join salaries S on C.playerID = S.playerID join schools SC on C.schoolID = SC.schoolID WHERE C.schoolID = 'idbyuid' order by S.salary desc"
+results = pd.read_sql_query(q,con)
+results
+```
+
+
+
+## QUESTION|TASK 2 Part A: Batting Averages
+
+_Write an SQL query that provides playerID, yearID, and batting average for players with at least 1 at bat that year. Sort the table from highest batting average to lowest, and then by playerid alphabetically. Show the top 5 results in your report._
+
+_ The following players have the highest batting average out of players who had at least one at-bat. The listed players each have a 100% batting average. _
+```{python}
+#| label: Q1 chart
+#| code-summary: plot example
+#| fig-align: center
+# Include and execute your code here
+# q = "SELECT C.playerID, b.yearid, C.schoolID, round((B.H*1.0)/B.AB,2) as BattingAvg from collegeplaying C join batting B on C.playerid = B.playerID where AB > 1 and BattingAvg <> 0 order by BattingAvg, C.playerid limit 5"
+# results = pd.read_sql_query(q,con)
+
+# results
+
+q = '''
+SELECT distinct C.playerID, B.yearID, round((B.H*1.0)/B.AB,3) as BattingAvg
+from collegeplaying C 
+join batting B on C.playerid = B.playerID 
+where b.AB > 1
+order by BattingAvg desc, c.playerID
+limit 5 '''
+
+results = pd.read_sql_query(q,con)
+
+results
+```
+
+## QUESTION|TASK 2 Part B: Batting Averages When At-Bats are at Least 10.
+
+__Use the same query as above, but only include players with at least 10 at bats that year. Print the top 5 results.__
+
+_When players had at least 10 at-bats, the top player had a batting average of 54.5%. _
+
+```{python}
+#| label: Q2 part B table
+#| code-summary: table example
+#| tbl-cap: "Not much of a table"
+#| tbl-cap-location: top
+# Include and execute your code here
+q = '''
+SELECT distinct C.playerID, B.yearID, round((B.H*1.0)/B.AB,3) as BattingAvg
+from collegeplaying C 
+join batting B on C.playerid = B.playerID 
+where b.AB >= 10
+order by BattingAvg desc, c.playerID
+limit 5 '''
+
+results = pd.read_sql_query(q,con)
+
+results
+
+```
+
+
+## QUESTION|TASK 2 Part C: Career Batting Averages
+
+__Now calculate the batting average for players over their entire careers (all years combined). Only include players with at least 100 at bats, and print the top 5 results.__
+
+_The top Batting average for those with at least 100 at-bats was 36.6%_
+
+```{python}
+#| label: Q2
+#| code-summary: Read and format data
+# Include and execute your code here
+q = "SELECT playerID, ROUND(CAST(SUM((H*1.0)) AS DECIMAL) / CAST(SUM((AB*1.0)) AS DECIMAL), 3) AS career_batting_average FROM batting GROUP BY playerID HAVING SUM(AB) >= 100 ORDER BY career_batting_average DESC LIMIT 5;"
+results = pd.read_sql_query(q,con)
+
+results
+
+```
+
+## QUESTION|TASK 3: Two Team Comparison of Homerun per Hit
+
+__Pick any two baseball teams and compare them using a metric of your choice (average salary, home runs, number of wins, etc). Write an SQL query to get the data you need, then make a graph using Plotly Express to visualize the comparison. What do you learn?__
+
+_Through this visual we can see that 1.1% of RC1's hits were homeruns while 1.5% of TRO's hits were homeruns._
+
+```{python}
+#| label: Q3 chart
+#| code-summary: plot example
+#| fig-align: center
+# Include and execute your code here
+q = '''
+SELECT teamid, SUM((HR*1.0))/SUM((H*1.0)) AS HomeRunsPerHit FROM batting 
+WHERE teamid IN ('TRO', 'RC1') GROUP BY teamid'''
+results = pd.read_sql_query(q,con)
+con.close()
+fig = px.bar(results, x='teamID', y='HomeRunsPerHit', title='Comparison of Home Runs Per Hit', color = 'teamID',text_auto=True)
+fig.show()
+```
+
+
