@@ -1,7 +1,7 @@
 ---
-title: "Client Report - [Insert Project Title]"
+title: "Client Report - Project 5"
 subtitle: "Course DS 250"
-author: "[STUDENT NAME]"
+author: "Ava Jenks"
 format:
   html:
     self-contained: true
@@ -25,4 +25,286 @@ execute:
     
 ---
 
-### Paste in a template
+```{python}
+#| label: libraries
+#| include: false
+import pandas as pd
+import numpy as np
+import plotly.express as px
+```
+
+
+## Elevator pitch
+
+_The articel, "America's Favorite 'Star Wars' Movies (And Least Favorite Characters)" provides graphs that show which movie each respondent thought was the best. Another graph depicts what percentage of each respondent thought Han or Greedo shot first. I recreated these graphs and found that The Empire Strikes Back had the highest percent of votes for best movie at 36% followed by A New Hope and Return of the Jedi. On the other hand I found that 27% of respondents thought Han shot first. In addition, an accuracy test shows that there is 75% accuracy to the statement that those who have seen Star Wars have a household income of over $50,000._
+
+
+```{python}
+#| label: project-data
+#| code-summary: Read and format project data
+
+# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
+
+# Include and execute your code here
+
+df = "https://github.com/fivethirtyeight/data/raw/master/star-wars-survey/StarWars.csv"
+
+starwars = pd.read_csv(df,encoding="ISO-8859-1", skiprows =2, header = None)
+columns = pd.read_csv(df,encoding= "ISO-8859-1", nrows=1).melt()
+```
+
+
+## QUESTION|TASK 1 - Shortening Column Names
+
+__Shorten the column names and clean them up for easier use with pandas. Provide a table or list that exemplifies how you fixed the names._
+
+_Column Names were originally full questions from the survey. Below is a new list of the shortened column names._
+
+```{python}
+#| label: Sample of Cleaned Column Names
+#| code-summary: Code
+#| fig-align: center
+# Include and execute your code here
+
+
+(columns
+  .replace('Unamed: \d{1,2}', np.nan, regex=True)
+  .replace('Response',"")
+  .assign(clean_var = lambda x: x.variable.str.strip()
+      .replace('Which of the following Star Wars films have you seen? Please  select all that apply.','seen'),
+      clean_value = lambda x: x.value.str.strip())
+  .fillna(method = "ffill")
+  .assign(column_name = lambda x: x.clean_var.str.cat(x.clean_value, sep= "__")))
+
+variables_replace = {
+  'Have you seen any of the 6 films in the Star Wars franchise\\?': 'Seen_any',
+  'Do you consider yourself to be a fan of the Star Wars film franchise\\?': 'Fan_StarWars',
+  'Which of the following Star Wars films have you seen\\? Please select all that apply.': 'Films_Watched',
+  'Please rank the Star Wars films in order of preference with 1 being your favorite film in the franchise and 6 being your least favorite film.': 'Film_Ranking',
+  'Are you familiar with the Expanded Universe\\?': 'Familiar_Expanded',
+  'Do you consider yourself to be a fan of the Expanded Universe\\?\x8cæ': 'Expanded_Fan', 'Do you consider yourself to be a fan of the Star Trek franchise\\?': 'StarTrek_Fan','which_character_shot_first\\?': 'shot_first_Han',
+  'Please state whether you view the following characters favorably, unfavorably, or are unfamiliar with him/her.': 'Favorable_or_Unfavorable','Unnamed: \d{1,2}':np.nan,' ':'_',
+}
+
+values_replace = {
+  'Response':'',
+  'Star Wars: Episode ':'',
+  ' ':'_'
+}
+mycols = (columns.assign(
+  value_replace = lambda x: x.value.str.strip().replace(values_replace, regex = True), 
+  variable_replace = lambda x: x.variable.str.strip().replace(variables_replace, regex=True)
+).fillna(method='ffill')
+.fillna(value="")
+.assign(col_names = lambda x: x.variable_replace.str.cat(x.value_replace, sep = "__").str.strip('__').str.lower()))
+
+print(mycols["col_names"].to_list())
+
+starwars.columns = mycols["col_names"].to_list()
+
+```
+
+
+## QUESTION|TASK 2 - Cleaning and Filtering the Data
+
+__Clean and format the data so that it can be used in a machine learning model. As you format the data, you should complete each item listed below. In your final report provide example(s) of the reformatted data with a short description of the changes made.__
+
+_The changes I made include the following: _
+
+
+_-Filtering the database to only those who have seen Star Wars._
+
+
+```{python}
+#| label: Q2
+#| code-summary: Filter to those who have seen 'Star Wars'
+# Include and execute your code here
+df_seen_any = starwars[starwars['seen_any'] == 'Yes']
+
+```
+
+_-Creating an age range colum instead of the age colum._
+
+```{python}
+#| label: Q2-chart
+#| code-summary: column example
+#| fig-align: center
+
+
+age_num = (starwars.age 
+    .str.replace('18-29', '18')
+    .str.replace('30-44', '30')
+    .str.replace('45-60', '45')
+    .str.replace('> 60', '60')
+    .astype('float')
+    .replace(np.nan, 38.25))
+
+age_num
+```
+
+_-Creating an education grouping column instead of the education column._
+```{python}
+#| label: Q2-table
+#| code-summary: column example
+#| tbl-cap-location: top
+# Include and execute your code here
+
+edu_num = (starwars.education
+    .str.replace('Less than high school degree', '8')
+    .str.replace('High school degree', '12')
+    .str.replace('Bachelor degree', '16')
+    .str.replace('Some college or Associate degree', '18')
+    .str.replace('Graduate degree', '20')
+    .astype('float')
+    .replace(np.nan, 14.2))
+
+edu_num
+```
+
+_-Creating a new column that converts the income to ranges_
+```{python}
+#| label: Q3
+#| code-summary: column example
+# Include and execute your code here
+income_num = (starwars.household_income
+    .str.replace('$0 - $24,999', '0')
+    .str.replace('$25,000 - $49,999', '25000')
+    .str.replace('$50,000 - $99,999', '50000')
+    .str.replace('$100,000 - $149,999', '100000')
+    .str.replace('$150,000+', '150000')
+    .astype('float')
+    .replace(np.nan, 65000)
+    )
+income_num
+
+```
+
+_Dropping the old age, income, and education column_
+
+_Creating a new target based on the new ranges_
+
+_One-hot encoding all remaining categorical columns_
+```{python}
+#| label: Q3.2
+#| fig-align: center
+# Include and execute your code here
+
+correct = pd.concat([income_num, edu_num, age_num], axis=1)
+
+correct['above50k'] = (correct['household_income'].apply(lambda x : 1 if x >= 50000 else 0))
+
+starwars = (starwars.replace('Star Wars: .+', 1, regex=True)
+      .replace(np.NaN, 0))
+
+one_hot = starwars.drop(['education', 'age', 'household_income'], axis =1)
+
+enc = pd.get_dummies(one_hot, drop_first=False,dtype=int)
+
+together = pd.concat([correct, enc], axis=1)
+
+```
+
+## QUESTION|TASK 3 - Recreating Graphs
+
+__Validate that the data provided on GitHub lines up with the article by recreating 2 of the visuals from the article.__
+
+_The best 'Star Wars' movie according to respondands was The Empire Strikes Back. The lowest voted movie was Attack of the Clones._
+```{python}
+#| code-summary: Graph 1
+#| fig-align: center
+# Include and execute your code here
+table = together.query('films_watched__i__the_phantom_menace == 1 and films_watched__ii__attack_of_the_clones ==1 and films_watched__iii__revenge_of_the_sith ==1 and films_watched__iv__a_new_hope == 1 and films_watched__v_the_empire_strikes_back ==1 and films_watched__vi_return_of_the_jedi == 1')
+table_rank = table[['film_ranking__i__the_phantom_menace',
+ 'film_ranking__ii__attack_of_the_clones',
+ 'film_ranking__iii__revenge_of_the_sith',
+ 'film_ranking__iv__a_new_hope',
+ 'film_ranking__v_the_empire_strikes_back',
+ 'film_ranking__vi_return_of_the_jedi']]
+
+target = 1
+
+def calc_percent(column):
+  total_rows = len(column)
+  target_value_count = column.value_counts().get(target,0)
+  return(target_value_count/total_rows)
+
+percent = table_rank.apply(calc_percent)
+result = pd.DataFrame({'movie': percent.index, 'percent_best':percent.values})
+
+result['movie'] = ['The Phantom Menace','Attack of the Clones', 'Revenge of the Sith', 'A New Home', 'The Empire Strikes Back', 'Return of the Jedi']
+
+fig = px.bar(result, x='movie', y='percent_best', 
+             labels={'movie': 'Star Wars Movie', 'percent_best': 'Percentage'},
+             title="Whats the best 'Star Wars' Movie", color='movie',text_auto=True)
+fig.update_yaxes(tickformat=".0%")  
+fig.show()
+
+```
+
+
+
+
+_27% of respondants thought that Han shot first while 26% of respondants didn't understand the question. Only 17% of respondants thought Greedo shot first._
+```{python}
+#| code-summary: Graph 2
+#| fig-align: center
+# Include and execute your code here
+
+han_count = (starwars['which_character_shot_first?'] == 'Han').sum()
+greedo_count = (starwars['which_character_shot_first?'] == 'Greedo').sum()
+idk_count = (starwars['which_character_shot_first?'] == "I don't understand this question").sum()
+
+
+total_count = len(starwars)
+
+
+han_percent = han_count / total_count
+greedo_percent = greedo_count / total_count
+idk_percent = idk_count / total_count
+
+
+shot_df = pd.DataFrame({
+    'Option': ['Han', 'Greedo', "I don't understand"],
+    'Percentage': [han_percent, greedo_percent, idk_percent]
+})
+
+fig_shot = px.bar(shot_df, x='Option', y='Percentage',
+                  labels={'Option': 'Response', 'Percentage': 'Percentage'},
+                  title="Who Shot First?",color='Option',text_auto=True)
+fig_shot.update_yaxes(tickformat=".0%")  # 
+fig_shot.show()
+```
+
+
+## QUESTION|TASK 4 - Machine Learning Model
+
+__Build a machine learning model that predicts whether a person makes more than $50k. Describe your model and report the accuracy.__
+
+_The assertion that those who have seen 'Star Wars' have a household income over $50,000 is 72% accurate according to our data._
+```{python}
+#| label: Machine Learning
+#| code-summary: Machine Learning
+#| tbl-cap-location: top
+# Include and execute your code here
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+
+X = together.drop(['above50k','household_income'], axis=1)  
+y = together['above50k']  
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy:", accuracy)
+
+```
