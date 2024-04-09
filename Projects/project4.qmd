@@ -1,7 +1,7 @@
 ---
-title: "Client Report - [Insert Project Title]"
+title: "Client Report - Project 4: Can You Predict That?"
 subtitle: "Course DS 250"
-author: "[STUDENT NAME]"
+author: "Ava Jenks"
 format:
   html:
     self-contained: true
@@ -25,4 +25,176 @@ execute:
     
 ---
 
-### Paste in a template
+```{python}
+#| label: libraries
+#| include: false
+import pandas as pd
+import numpy as np
+import plotly.express as px
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# import sklearn
+```
+
+
+## Elevator pitch
+
+_Comparing the number of bedrooms in a house before and after 1980 we can see that there are less on average per house after 1980. We can also see that there is a smaller average liveable square footage per house after 1980 than before 1980. In fact, the assertion that there are less bedrooms in a house after 1980 was proven to be 93% accurate. _
+
+
+```{python}
+#| label: project-data
+#| code-summary: Read and format project data
+
+# Learn morea about Code Cells: https://quarto.org/docs/reference/cells/cells-jupyter.html
+
+df = pd.read_csv("https://github.com/byuidatascience/data4dwellings/raw/master/data-raw/dwellings_ml/dwellings_ml.csv")
+```
+
+
+## QUESTION|TASK 1
+
+__Create 2-3 charts that evaluate potential relationships between the home variables and before1980. Explain what you learn from the charts that could help a machine learning algorithm.__
+
+_There is an average of 2.63 bedrooms in houses before 1980 and an average of 2.45 bedrooms after 1980. In addittion, there is an average of 1,879 sq ft homes before 1980 and 1290 sq ft in homes after 1980. _
+
+```{python}
+#| label: Q1
+#| code-summary: Chart
+# Include and execute your code here
+df_agg = df.groupby('before1980')['numbdrm'].mean().reset_index()
+
+# Create a line plot using Plotly Express
+chart = px.bar(df_agg,
+                x="before1980",  # Year built on x-axis
+                y="netprice",   # Total sale price on y-axis
+                title="Net Price Before and After 1980", color='before1980', text_auto=True)
+
+# Show the plot
+chart.show()
+
+
+```
+
+
+```{python}
+#| label: Q1-chart
+#| code-summary: plot example
+#| fig-align: center
+# Include and execute your code here
+df_agg = df.groupby('before1980')['livearea'].mean().reset_index()
+
+
+chart = px.bar(df_agg,
+                x="before1980",  
+                y="livearea",  
+                title="Liveable Area Before and After 1980")
+
+chart.show()
+```
+
+
+## QUESTION|TASK 2
+
+__Build a classification model labeling houses as being built “before 1980” or “during or after 1980”. Your goal is to reach or exceed 90% accuracy. Explain your final model choice (algorithm, tuning parameters, etc) and describe what other models you tried.__
+
+_ There is a 93% accuracy to the assertion that there are more bedrooms in houses before 1980 than houses after 1980._
+
+```{python}
+#| label: Task 2
+#| code-summary: Classification Model
+# Include and execute your code here
+
+
+df = pd.read_csv("https://github.com/byuidatascience/data4dwellings/raw/master/data-raw/dwellings_ml/dwellings_ml.csv")
+
+# Convert 'yrbuilt' column to numeric (ignore errors for non-numeric values)
+df['netprice'] = pd.to_numeric(df['netprice'], errors='coerce')
+
+# Drop rows with missing 'numbrm' values
+df.dropna(subset=['netprice'], inplace=True)
+
+# Preprocess data
+X = df.drop(['before1980', 'yrbuilt', 'parcel'], axis=1)
+y = df['before1980']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Choose a classification algorithm (Random Forest Classifier)
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+
+# Train the model
+clf.fit(X_train, y_train)
+
+# Predict on the testing set
+y_pred = clf.predict(X_test)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy:", accuracy)
+```
+
+
+## QUESTION|TASK 3
+
+__Justify your classification model by discussing the most important features selected by your model. This discussion should include a chart and a description of the features.__
+
+_This line chart shows us the the average liveable square feet per house per year. My classification model compares the number of bedrooms before and after 1980. If there are more bedrooms, then in theory there could be a larger amount of liveable sq ft per house. _
+
+
+```{python}
+#| label: Task 3
+#| code-summary: Line chart
+#| fig-align: center
+df_agg = df.groupby('yrbuilt')['livearea'].mean().reset_index()
+
+chart = px.line(df_agg,
+                x="yrbuilt", 
+                y="livearea",   
+                title="??")
+chart.add_annotation(
+    x=1980,
+    y=1142.88,
+    text="1980",
+    ax=-30,  
+    ay=-80,  
+    showarrow=True,
+    arrowhead=1
+)
+chart.show()
+```
+
+
+## QUESTION|TASK 4
+
+__Describe the quality of your classification model using 2-3 different evaluation metrics. You also need to explain how to interpret each of the evaluation metrics you use.__
+
+_I used the precision metric to show that my assertion is 94.3% precise. The precision score shows that our assertion was right out of all of the instances tested. Also, the recall metric returned a score of 94.7%. The recall score reflects the number of instances of all the times you were supposed to take an action of all the times you took an action when testing an assertion. _
+
+```{python}
+#| label: sklearn 2
+#| code-summary: Code
+# Include and execute your code here
+from sklearn.metrics import precision_score
+
+
+precision = precision_score(y_test, y_pred)
+
+
+print("Precision:", precision)
+
+```
+
+
+```{python}
+#| label: Sklern 3
+#| code-summary: Code
+#| fig-align: center
+
+from sklearn.metrics import recall_score
+recall = recall_score(y_test, y_pred)
+print("Recall:", recall)
+```
